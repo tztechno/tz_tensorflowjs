@@ -5,7 +5,7 @@ python3 -m tensorflowjs.converters.converter \
     mnist_model.h5 \
     ./tfjs_model/
 
-python3 -m http.server 8000
+// python3 -m http.server 8000
 
-http://[::]:8000/digit_recognition.html
+// http://[::]:8000/digit_recognition.html
 
