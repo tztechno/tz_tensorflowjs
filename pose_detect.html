@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>姿勢推定アプリ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+        #container {
+            position: relative;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        #video {
+            display: none;
+        }
+        #canvas {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            text-align: center;
+            font-size: 16px;
+            color: #333;
+        }
+        .loading {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .ready {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .error {
+            color: #ef4444;
+            font-weight: bold;
+        }
+        #controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧍 姿勢推定アプリ</h1>
+    <div id="container">
+        <video id="video" playsinline></video>
+        <canvas id="canvas"></canvas>
+        <div id="status" class="loading">モデルを読み込んでいます...</div>
+        <div id="controls">
+            <button id="startBtn" disabled>開始</button>
+            <button id="stopBtn" disabled>停止</button>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        let detector = null;
+        let isRunning = false;
+        let animationId = null;
+
+        // 骨格の接続関係
+        const connections = [
+            [0, 1], [0, 2], [1, 3], [2, 4], // 顔
+            [5, 6], [5, 7], [7, 9], [6, 8], [8, 10], // 腕
+            [5, 11], [6, 12], [11, 12], // 胴体
+            [11, 13], [13, 15], [12, 14], [14, 16] // 脚
+        ];
+
+        // モデルの初期化
+        async function initModel() {
+            try {
+                // TensorFlow.jsのバックエンドを初期化
+                await tf.ready();
+                status.textContent = 'モデルを読み込んでいます...';
+                
+                const model = poseDetection.SupportedModels.MoveNet;
+                detector = await poseDetection.createDetector(model, {
+                    modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+                });
+                status.textContent = 'カメラへのアクセスを許可してください';
+                status.className = 'loading';
+                await setupCamera();
+            } catch (error) {
+                status.textContent = 'エラー: ' + error.message;
+                status.className = 'error';
+                console.error('初期化エラー:', error);
+            }
+        }
+
+        // カメラのセットアップ
+        async function setupCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 }
+                });
+                video.srcObject = stream;
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        resolve();
+                    };
+                });
+
+                status.textContent = '準備完了！「開始」ボタンを押してください';
+                status.className = 'ready';
+                startBtn.disabled = false;
+            } catch (error) {
+                status.textContent = 'カメラアクセスエラー: ' + error.message;
+                status.className = 'error';
+            }
+        }
+
+        // 姿勢検出とレンダリング
+        async function detectPose() {
+            if (!isRunning) return;
+
+            // ビデオフレームをキャンバスに描画
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 姿勢検出
+            const poses = await detector.estimatePoses(video);
+
+            if (poses.length > 0) {
+                const pose = poses[0];
+                drawSkeleton(pose.keypoints);
+            }
+
+            animationId = requestAnimationFrame(detectPose);
+        }
+
+        // 骨格の描画
+        function drawSkeleton(keypoints) {
+            const minConfidence = 0.3;
+
+            // 関節点を描画
+            keypoints.forEach(keypoint => {
+                if (keypoint.score > minConfidence) {
+                    ctx.beginPath();
+                    ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+
+            // 接続線を描画
+            connections.forEach(([i, j]) => {
+                const kp1 = keypoints[i];
+                const kp2 = keypoints[j];
+
+                if (kp1.score > minConfidence && kp2.score > minConfidence) {
+                    ctx.beginPath();
+                    ctx.moveTo(kp1.x, kp1.y);
+                    ctx.lineTo(kp2.x, kp2.y);
+                    ctx.strokeStyle = '#ff00ff';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // 開始ボタン
+        startBtn.addEventListener('click', () => {
+            isRunning = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            status.textContent = '検出中...';
+            status.className = 'ready';
+            detectPose();
+        });
+
+        // 停止ボタン
+        stopBtn.addEventListener('click', () => {
+            isRunning = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            status.textContent = '停止しました';
+            status.className = '';
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+        });
+
+        // 初期化
+        initModel();
+    </script>
+</body>
+</html>
