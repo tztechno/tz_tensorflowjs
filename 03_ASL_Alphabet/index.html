@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASL Sign Language Recognition</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        #container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 800px;
+        }
+        #videoContainer {
+            position: relative;
+            display: inline-block;
+            margin: 0 auto;
+        }
+        #video {
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            display: block;
+            transform: scaleX(-1);
+            background: #000;
+        }
+        #canvas {
+            display: none;
+        }
+        #prediction {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .result {
+            font-size: 96px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+        }
+        .confidence-display {
+            font-size: 24px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .top-predictions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .prediction-item {
+            padding: 10px 20px;
+            background: #e0e7ff;
+            border-radius: 8px;
+            font-size: 18px;
+            color: #3730a3;
+        }
+        .prediction-item .label {
+            font-weight: bold;
+            font-size: 24px;
+            text-transform: uppercase;
+        }
+        .prediction-item .confidence {
+            font-size: 14px;
+            color: #666;
+        }
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+        button:hover:not(:disabled) {
+            background: #5568d3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            color: #666;
+            font-weight: bold;
+        }
+        .loading {
+            color: #667eea;
+        }
+        .ready {
+            color: #10b981;
+        }
+        .error {
+            color: #ef4444;
+        }
+        .note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e0e7ff;
+            border-radius: 8px;
+            color: #3730a3;
+            font-size: 14px;
+            text-align: center;
+        }
+        .classes-list {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .classes-list h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .classes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .class-item {
+            padding: 5px;
+            background: white;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤟 ASL Sign Language Recognition</h1>
+    <p class="subtitle">Show hand signs to the camera for real-time recognition</p>
+    
+    <div id="container">
+        <div id="videoContainer">
+            <video id="video" width="640" height="480" autoplay></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div id="controls">
+            <button id="startBtn">Start Camera</button>
+            <button id="stopBtn" disabled>Stop Camera</button>
+        </div>
+        
+        <div id="prediction">
+            <div class="result" id="result">-</div>
+            <div class="confidence-display" id="confidence">Confidence: 0%</div>
+            <div class="top-predictions" id="topPredictions"></div>
+        </div>
+        
+        <div id="status" class="loading">Loading model...</div>
+        
+        <div class="note">
+            ✨ Real-time ASL alphabet recognition using deep learning
+        </div>
+        
+        <div class="classes-list">
+            <h3>Recognized Classes:</h3>
+            <div class="classes-grid" id="classList"></div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const result = document.getElementById('result');
+        const confidence = document.getElementById('confidence');
+        const topPredictions = document.getElementById('topPredictions');
+        const status = document.getElementById('status');
+        const classList = document.getElementById('classList');
+
+        let model = null;
+        let stream = null;
+        let predictionInterval = null;
+        let classes = [];
+
+        // Load Model
+        async function loadModel() {
+            try {
+                await tf.ready();
+                status.textContent = 'Loading model...';
+                status.className = 'loading';
+                
+                // Load model from tfjs_model folder
+                model = await tf.loadLayersModel('./tfjs_model/model.json');
+                
+                // Define class names (A-Z + del, nothing, space)
+                classes = [
+                    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+                    'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+                    'U', 'V', 'W', 'X', 'Y', 'Z', 'del', 'nothing', 'space'
+                ];
+                
+                displayClasses();
+                
+                status.textContent = 'Model loaded! Click "Start Camera" to begin';
+                status.className = 'ready';
+                startBtn.disabled = false;
+                
+                console.log('Model loaded successfully');
+                console.log('Classes:', classes);
+            } catch (error) {
+                status.textContent = 'Error: Failed to load model';
+                status.className = 'error';
+                console.error('Model loading error:', error);
+            }
+        }
+
+        // Display class list
+        function displayClasses() {
+            classList.innerHTML = '';
+            classes.forEach(cls => {
+                const item = document.createElement('div');
+                item.className = 'class-item';
+                item.textContent = cls;
+                classList.appendChild(item);
+            });
+        }
+
+        // Start Camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        width: 640, 
+                        height: 480,
+                        facingMode: 'user'
+                    }
+                });
+                
+                video.srcObject = stream;
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                status.textContent = 'Camera active - Show your hand sign!';
+                status.className = 'ready';
+                
+                // Start prediction loop
+                predictionInterval = setInterval(predict, 500);
+                
+            } catch (error) {
+                status.textContent = 'Error: Could not access camera';
+                status.className = 'error';
+                console.error('Camera error:', error);
+            }
+        }
+
+        // Stop Camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            if (predictionInterval) {
+                clearInterval(predictionInterval);
+                predictionInterval = null;
+            }
+            
+            video.srcObject = null;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            status.textContent = 'Camera stopped';
+            status.className = '';
+            result.textContent = '-';
+            confidence.textContent = 'Confidence: 0%';
+            topPredictions.innerHTML = '';
+        }
+
+        // Run Prediction
+        async function predict() {
+            if (!model || !video.readyState === 4) return;
+
+            try {
+                // Capture frame from video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const tensor = preprocessImage(imageData);
+                
+                const predictions = await model.predict(tensor).data();
+                tensor.dispose();
+
+                // Get top predictions
+                const topK = getTopK(predictions, 3);
+                
+                // Display main prediction
+                const topPrediction = topK[0];
+                result.textContent = topPrediction.label;
+                confidence.textContent = `Confidence: ${(topPrediction.confidence * 100).toFixed(1)}%`;
+                
+                // Display top 3 predictions
+                displayTopPredictions(topK);
+                
+            } catch (error) {
+                console.error('Prediction error:', error);
+            }
+        }
+
+        // Preprocess Image
+        function preprocessImage(imageData) {
+            return tf.tidy(() => {
+                // Convert to grayscale
+                let tensor = tf.browser.fromPixels(imageData, 1);
+                
+                // Resize to 28x28
+                tensor = tf.image.resizeBilinear(tensor, [28, 28]);
+                
+                // Normalize (0-1 range)
+                tensor = tensor.div(255.0);
+                
+                // Add batch dimension
+                tensor = tensor.expandDims(0);
+                
+                return tensor;
+            });
+        }
+
+        // Get top K predictions
+        function getTopK(predictions, k) {
+            const indexed = Array.from(predictions).map((prob, index) => ({
+                label: classes[index],
+                confidence: prob,
+                index: index
+            }));
+            
+            indexed.sort((a, b) => b.confidence - a.confidence);
+            return indexed.slice(0, k);
+        }
+
+        // Display top predictions
+        function displayTopPredictions(topK) {
+            topPredictions.innerHTML = '';
+            topK.forEach((pred, i) => {
+                const item = document.createElement('div');
+                item.className = 'prediction-item';
+                item.innerHTML = `
+                    <div class="label">${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} ${pred.label}</div>
+                    <div class="confidence">${(pred.confidence * 100).toFixed(1)}%</div>
+                `;
+                topPredictions.appendChild(item);
+            });
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startCamera);
+        stopBtn.addEventListener('click', stopCamera);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopCamera);
+
+        // Initialize
+        loadModel();
+    </script>
+</body>
+</html>
