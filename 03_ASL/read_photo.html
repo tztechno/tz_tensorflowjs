@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASL Sign Language Recognition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.14.0/ort.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+        
+        .upload-area.dragging {
+            background: #e8ebff;
+            border-color: #764ba2;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        #preview {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 20px auto;
+            display: none;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 20px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .prediction {
+            font-size: 3em;
+            text-align: center;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .confidence {
+            text-align: center;
+            color: #666;
+            font-size: 1.2em;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #667eea;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤟 ASL Sign Language Recognition</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📸</div>
+            <p>Click or Drag & Drop to Upload Image</p>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+        
+        <img id="preview" alt="Preview">
+        
+        <button id="predictBtn" disabled>Predict</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading model...</p>
+        </div>
+        
+        <div id="result">
+            <div class="prediction" id="prediction"></div>
+            <div class="confidence" id="confidence"></div>
+        </div>
+    </div>
+
+    <script>
+        // ASLアルファベットのクラス名 -> ASL Alphabet Class Names
+        const classNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
+                            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 
+                            'del', 'nothing', 'space'];
+        
+        let session = null;
+        let currentImage = null;
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const predictBtn = document.getElementById('predictBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const prediction = document.getElementById('prediction');
+        const confidence = document.getElementById('confidence');
+        
+        // モデルの読み込み -> Load Model
+        async function loadModel() {
+            loading.style.display = 'block';
+            try {
+                session = await ort.InferenceSession.create('asl_model.onnx');
+                loading.style.display = 'none';
+                console.log('Model loaded successfully'); // モデル読み込み完了
+            } catch (error) {
+                loading.innerHTML = '<p style="color: red;">Failed to load model. Please ensure the asl_model.onnx file is in the same directory.</p>'; // モデルの読み込みに失敗しました。asl_model.onnxファイルが同じディレクトリにあることを確認してください。
+                console.error('Model loading error:', error); // モデル読み込みエラー
+            }
+        }
+        
+        // 画像の前処理 -> Image Preprocessing
+        function preprocessImage(img) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 224;
+            canvas.height = 224;
+            const ctx = canvas.getContext('2d');
+            
+            // 画像を224x224にリサイズして描画 -> Resize and draw image to 224x224
+            ctx.drawImage(img, 0, 0, 224, 224);
+            
+            // ピクセルデータを取得 -> Get pixel data
+            const imageData = ctx.getImageData(0, 0, 224, 224);
+            const pixels = imageData.data;
+            
+            // 正規化（ImageNetの平均と標準偏差） -> Normalization (ImageNet mean and std)
+            const mean = [0.485, 0.456, 0.406];
+            const std = [0.229, 0.224, 0.225];
+            
+            // Float32Array [1, 3, 224, 224] の形式に変換 -> Convert to Float32Array format [1, 3, 224, 224]
+            const data = new Float32Array(1 * 3 * 224 * 224);
+            
+            for (let i = 0; i < 224; i++) {
+                for (let j = 0; j < 224; j++) {
+                    const idx = (i * 224 + j) * 4;
+                    const pixelIdx = i * 224 + j;
+                    
+                    // RGB チャンネルを分離して正規化 -> Separate and normalize RGB channels
+                    data[pixelIdx] = (pixels[idx] / 255 - mean[0]) / std[0];
+                    data[224 * 224 + pixelIdx] = (pixels[idx + 1] / 255 - mean[1]) / std[1];
+                    data[224 * 224 * 2 + pixelIdx] = (pixels[idx + 2] / 255 - mean[2]) / std[2];
+                }
+            }
+            
+            return data;
+        }
+        
+        // 予測実行 -> Execute Prediction
+        async function predict() {
+            if (!session || !currentImage) return;
+            
+            predictBtn.disabled = true;
+            result.style.display = 'none';
+            loading.style.display = 'block';
+            loading.innerHTML = '<div class="spinner"></div><p>Predicting...</p>'; // 予測中...
+            
+            try {
+                // 画像を前処理 -> Preprocess the image
+                const inputData = preprocessImage(currentImage);
+                const tensor = new ort.Tensor('float32', inputData, [1, 3, 224, 224]);
+                
+                // 推論実行 -> Execute inference
+                const feeds = { input: tensor };
+                const results = await session.run(feeds);
+                const output = results.output.data;
+                
+                // log_softmaxの出力なので、expを取って確率に変換 -> Since the output is log_softmax, convert to probability by taking exp
+                const probabilities = Array.from(output).map(x => Math.exp(x));
+                
+                // 最大値のインデックスを取得 -> Get the index of the maximum value
+                const maxIdx = probabilities.indexOf(Math.max(...probabilities));
+                const predictedClass = classNames[maxIdx];
+                const conf = (probabilities[maxIdx] * 100).toFixed(2);
+                
+                // 結果を表示 -> Display the result
+                prediction.textContent = predictedClass;
+                confidence.textContent = `Confidence: ${conf}%`; // 信頼度: ${conf}%
+                result.style.display = 'block';
+                
+            } catch (error) {
+                alert('Prediction Error: ' + error.message); // 予測エラー
+                console.error('Prediction Error:', error); // 予測エラー
+            } finally {
+                loading.style.display = 'none';
+                predictBtn.disabled = false;
+            }
+        }
+        
+        // ファイル選択時の処理 -> Handler for file selection
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        currentImage = img;
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                        predictBtn.disabled = false;
+                        result.style.display = 'none';
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // ドラッグ&ドロップ -> Drag & Drop
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragging');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragging');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragging');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                fileInput.files = e.dataTransfer.files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+        
+        // 予測ボタン -> Predict Button
+        predictBtn.addEventListener('click', predict);
+        
+        // 初期化 -> Initialization
+        loadModel();
+    </script>
+</body>
+</html>
