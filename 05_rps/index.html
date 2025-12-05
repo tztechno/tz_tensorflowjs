@@ -218,6 +218,15 @@
             font-size: 1.3em;
             color: #666;
         }
+        
+        .model-info {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -271,6 +280,8 @@
             <div class="prediction" id="prediction"></div>
             <div class="confidence" id="confidence"></div>
         </div>
+        
+        <div class="model-info" id="modelInfo" style="display:none;"></div>
     </div>
 
     <script>
@@ -280,6 +291,8 @@
         let currentImage = null;
         let stream = null;
         let realtimeInterval = null;
+        let inputName = null;
+        let outputName = null;
         
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
@@ -290,6 +303,7 @@
         const result = document.getElementById('result');
         const prediction = document.getElementById('prediction');
         const confidence = document.getElementById('confidence');
+        const modelInfo = document.getElementById('modelInfo');
         
         // Tab Switching
         function switchTab(tabName) {
@@ -398,15 +412,21 @@
             img.onload = async () => {
                 try {
                     const inputData = preprocessImage(img);
-                    const tensor = new ort.Tensor('float32', inputData, [1, 3, 224, 224]);
-                    const feeds = { input: tensor };
-                    const results = await session.run(feeds);
-                    const output = results.output.data;
+                    const tensor = new ort.Tensor('float32', inputData, [1, 224, 224, 3]);
+                    const feeds = {};
+                    feeds[inputName] = tensor;
                     
-                    const probabilities = Array.from(output).map(x => Math.exp(x));
-                    const maxIdx = probabilities.indexOf(Math.max(...probabilities));
+                    const results = await session.run(feeds);
+                    const outputTensor = results[outputName];
+                    const output = outputTensor.data;
+                    
+                    const probabilities = Array.from(output);
+                    const sum = probabilities.reduce((a, b) => a + b, 0);
+                    const normalizedProbs = probabilities.map(p => p / sum);
+                    
+                    const maxIdx = normalizedProbs.indexOf(Math.max(...normalizedProbs));
                     const predictedClass = classNames[maxIdx];
-                    const conf = (probabilities[maxIdx] * 100).toFixed(1);
+                    const conf = (normalizedProbs[maxIdx] * 100).toFixed(1);
                     
                     document.getElementById('realtimePrediction').textContent = predictedClass;
                     document.getElementById('realtimeConfidence').textContent = `Confidence: ${conf}%`;
@@ -429,7 +449,20 @@
                     }
                 );
 
+                // Get input and output names from the model
+                inputName = session.inputNames[0];
+                outputName = session.outputNames[0];
+                
                 console.log('Model loaded successfully');
+                console.log('Input name:', inputName);
+                console.log('Output name:', outputName);
+                console.log('Input shape:', session.inputNames.map(name => 
+                    session._model._graph._allInputs.find(i => i.name === name)?.type?.shape
+                ));
+                
+                modelInfo.textContent = `Model Info - Input: ${inputName}, Output: ${outputName}`;
+                modelInfo.style.display = 'block';
+                
             } catch (error) {
                 loading.innerHTML = `
                     <p style="color: red;">
@@ -441,10 +474,8 @@
             }
         }
 
-
         
-        // Image Preprocessing
-// Image Preprocessing
+        // Image Preprocessing (channels-last format)
         function preprocessImage(img) {
             const canvas = document.createElement('canvas');
             canvas.width = 224;
@@ -459,24 +490,24 @@
             const mean = [0.485, 0.456, 0.406];
             const std = [0.229, 0.224, 0.225];
             
-            // Changed to channels-last format: [224, 224, 3]
-            const data = new Float32Array(224 * 224 * 3);
+            // channels-last format: [batch, height, width, channels]
+            const data = new Float32Array(1 * 224 * 224 * 3);
             
             for (let i = 0; i < 224; i++) {
                 for (let j = 0; j < 224; j++) {
                     const idx = (i * 224 + j) * 4;
-                    const baseIdx = (i * 224 + j) * 3;
+                    const pixelIdx = (i * 224 + j) * 3;
                     
-                    // RGB channels stored contiguously for each pixel
-                    data[baseIdx] = (pixels[idx] / 255 - mean[0]) / std[0];
-                    data[baseIdx + 1] = (pixels[idx + 1] / 255 - mean[1]) / std[1];
-                    data[baseIdx + 2] = (pixels[idx + 2] / 255 - mean[2]) / std[2];
+                    // RGB order for channels-last
+                    data[pixelIdx] = (pixels[idx] / 255 - mean[0]) / std[0];
+                    data[pixelIdx + 1] = (pixels[idx + 1] / 255 - mean[1]) / std[1];
+                    data[pixelIdx + 2] = (pixels[idx + 2] / 255 - mean[2]) / std[2];
                 }
             }
             
             return data;
         }
-
+        
         // Predict from Image
         async function predictImage(img) {
             if (!session) return;
@@ -487,17 +518,33 @@
             
             try {
                 const inputData = preprocessImage(img);
-                const tensor = new ort.Tensor('float32', inputData, [1, 3, 224, 224]);
+                const tensor = new ort.Tensor('float32', inputData, [1, 224, 224, 3]);
                 
-                const feeds = { input: tensor };
+                const feeds = {};
+                feeds[inputName] = tensor;
+                
+                console.log('Running inference with input:', inputName);
                 const results = await session.run(feeds);
-                const output = results.output.data;
+                console.log('Results:', results);
+                console.log('Output names:', Object.keys(results));
                 
-                const probabilities = Array.from(output).map(x => Math.exp(x));
+                const outputTensor = results[outputName];
+                if (!outputTensor) {
+                    throw new Error(`Output '${outputName}' not found. Available outputs: ${Object.keys(results).join(', ')}`);
+                }
                 
-                const maxIdx = probabilities.indexOf(Math.max(...probabilities));
+                const output = outputTensor.data;
+                console.log('Output data:', output);
+                
+                const probabilities = Array.from(output);
+                const sum = probabilities.reduce((a, b) => a + b, 0);
+                const normalizedProbs = probabilities.map(p => p / sum);
+                
+                console.log('Probabilities:', normalizedProbs);
+                
+                const maxIdx = normalizedProbs.indexOf(Math.max(...normalizedProbs));
                 const predictedClass = classNames[maxIdx];
-                const conf = (probabilities[maxIdx] * 100).toFixed(2);
+                const conf = (normalizedProbs[maxIdx] * 100).toFixed(2);
                 
                 prediction.textContent = predictedClass;
                 confidence.textContent = `Confidence: ${conf}%`;
