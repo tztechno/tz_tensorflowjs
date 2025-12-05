@@ -420,27 +420,15 @@
         // Load Model
         async function loadModel() {
             loading.style.display = 'block';
-
             try {
-                session = await ort.InferenceSession.create(
-                    'https://huggingface.co/datasets/stpete2/onnx_model/resolve/main/emotion_model.onnx',
-                    {
-                        executionProviders: ['wasm']
-                    }
-                );
-
+                session = await ort.InferenceSession.create('emotion_model.onnx');
+                loading.style.display = 'none';
                 console.log('Model loaded successfully');
             } catch (error) {
-                loading.innerHTML = `
-                    <p style="color: red;">
-                        Model load failed. Make sure the ONNX file is accessible with CORS enabled.
-                    </p>`;
+                loading.innerHTML = '<p style="color: red;">Failed to load the model. Please ensure the emotion_model.onnx file is in the same directory.</p>';
                 console.error('Model loading error:', error);
-            } finally {
-                loading.style.display = 'none';
             }
         }
-
         
         // Image Preprocessing
         function preprocessImage(img) {
