@@ -1,5 +1,7 @@
 # tz_tensorflowjs
 
+https://tztechno.github.io/tz_tensorflowjs/01_pose_detection/pose_detection.html (tfjs)
+
 https://tztechno.github.io/tz_tensorflowjs/02_mnist/digit_recognition.html (keras, h5, tfjs)
 
 https://tztechno.github.io/tz_tensorflowjs/03_ASL/index.html (pytorch, onnx)
