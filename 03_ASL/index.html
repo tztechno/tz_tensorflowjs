@@ -422,13 +422,24 @@
         // Load Model
         async function loadModel() {
             loading.style.display = 'block';
+
             try {
-                session = await ort.InferenceSession.create('asl_model.onnx');
-                loading.style.display = 'none';
+                session = await ort.InferenceSession.create(
+                    'https://huggingface.co/datasets/stpete2/onnx_model/resolve/main/asl_model.onnx',
+                    {
+                        executionProviders: ['wasm']
+                    }
+                );
+
                 console.log('Model loaded successfully');
             } catch (error) {
-                loading.innerHTML = '<p style="color: red;">Failed to load the model. Please ensure the asl_model.onnx file is in the same directory.</p>';
+                loading.innerHTML = `
+                    <p style="color: red;">
+                        Model load failed. Make sure the ONNX file is accessible with CORS enabled.
+                    </p>`;
                 console.error('Model loading error:', error);
+            } finally {
+                loading.style.display = 'none';
             }
         }
         
