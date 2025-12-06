@@ -249,7 +249,6 @@
             <div class="camera-controls">
                 <button id="startCameraBtn" onclick="startCamera()">Start Camera</button>
                 <button id="stopCameraBtn" onclick="stopCamera()" style="display:none;" class="secondary">Stop Camera</button>
-                <button id="switchCameraBtn" onclick="switchCamera()" style="display:none;" class="secondary">🔄 Switch Camera</button>
             </div>
             
             <div class="camera-controls">
@@ -281,7 +280,6 @@
         let currentImage = null;
         let stream = null;
         let realtimeInterval = null;
-        let usingFrontCamera = true; // デフォルトは前面カメラ
         
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
@@ -292,7 +290,6 @@
         const result = document.getElementById('result');
         const prediction = document.getElementById('prediction');
         const confidence = document.getElementById('confidence');
-        const switchCameraBtn = document.getElementById('switchCameraBtn');
         
         // Tab Switching
         function switchTab(tabName) {
@@ -314,70 +311,21 @@
         // Start Camera
         async function startCamera() {
             try {
-                // カメラの設定
-                const constraints = {
+                stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
-                        facingMode: usingFrontCamera ? 'user' : 'environment', // 前面か背面かを設定
+                        facingMode: 'user',
                         width: { ideal: 640 },
                         height: { ideal: 480 }
                     } 
-                };
-                
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                });
                 video.srcObject = stream;
                 
                 document.getElementById('startCameraBtn').style.display = 'none';
                 document.getElementById('stopCameraBtn').style.display = 'block';
-                document.getElementById('switchCameraBtn').style.display = 'block';
                 document.getElementById('captureBtn').disabled = false;
                 document.getElementById('realtimeBtn').disabled = false;
-                
-                // 背面カメラの場合は映像を反転しない
-                if (!usingFrontCamera) {
-                    video.style.transform = 'scaleX(1)';
-                } else {
-                    video.style.transform = 'scaleX(-1)';
-                }
-                
             } catch (error) {
                 alert('Camera access denied: ' + error.message);
-            }
-        }
-        
-        // Switch Camera
-        async function switchCamera() {
-            if (!stream) return;
-            
-            // 現在のストリームを停止
-            stream.getTracks().forEach(track => track.stop());
-            
-            // カメラを切り替え
-            usingFrontCamera = !usingFrontCamera;
-            
-            try {
-                const constraints = {
-                    video: { 
-                        facingMode: usingFrontCamera ? 'user' : 'environment',
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    } 
-                };
-                
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-                
-                // 背面カメラの場合は映像を反転しない
-                if (!usingFrontCamera) {
-                    video.style.transform = 'scaleX(1)';
-                } else {
-                    video.style.transform = 'scaleX(-1)';
-                }
-                
-            } catch (error) {
-                alert('Failed to switch camera: ' + error.message);
-                // エラーの場合は元のカメラに戻す
-                usingFrontCamera = !usingFrontCamera;
-                startCamera();
             }
         }
         
@@ -390,7 +338,6 @@
                 
                 document.getElementById('startCameraBtn').style.display = 'block';
                 document.getElementById('stopCameraBtn').style.display = 'none';
-                document.getElementById('switchCameraBtn').style.display = 'none';
                 document.getElementById('captureBtn').disabled = true;
                 document.getElementById('realtimeBtn').disabled = true;
                 
@@ -403,20 +350,16 @@
             }
         }
         
+
+
         // Capture and Predict
         async function captureAndPredict() {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
-            
-            // 前面カメラの場合は反転、背面カメラの場合はそのまま
-            if (usingFrontCamera) {
-                ctx.scale(-1, 1);
-                ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-            } else {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            }
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
             
             canvas.toBlob(async (blob) => {
                 const img = new Image();
@@ -426,6 +369,8 @@
                 img.src = URL.createObjectURL(blob);
             });
         }
+        
+
         
         // Toggle Real-time Prediction
         function toggleRealtime() {
@@ -450,14 +395,8 @@
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
-            
-            // 前面カメラの場合は反転、背面カメラの場合はそのまま
-            if (usingFrontCamera) {
-                ctx.scale(-1, 1);
-                ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-            } else {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            }
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
             
             const img = new Image();
             img.onload = async () => {
@@ -506,6 +445,8 @@
             }
         }
 
+        
+
         // Image Preprocessing
         function preprocessImage(img) {
             const canvas = document.createElement('canvas');
@@ -537,6 +478,8 @@
             return data;
         }
         
+
+
         // Predict from Image
         async function predictImage(img) {
             if (!session) return;
