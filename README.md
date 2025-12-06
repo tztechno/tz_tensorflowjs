@@ -11,3 +11,6 @@ https://tztechno.github.io/tz_tensorflowjs/04_face_emotion/index.html (pytorch, 
 https://tztechno.github.io/tz_tensorflowjs/05_rps/index.html (keras, onnx .... ERROR)
 
 https://tztechno.github.io/tz_tensorflowjs/06_rps2/index.html (pytorch, onnx)
+
+https://tztechno.github.io/tz_tensorflowjs/07_color_detect/index.html
+
