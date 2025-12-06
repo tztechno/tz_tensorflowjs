@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -118,40 +118,53 @@
             margin-top: 20px;
         }
         
-        .color-name {
-            font-size: 2.5em;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        
-        .color-values {
+        .color-codes {
             display: flex;
-            justify-content: center;
-            gap: 20px;
+            flex-direction: column;
+            gap: 15px;
             margin-top: 15px;
-            flex-wrap: wrap;
         }
         
-        .color-value {
+        .color-code-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             background: white;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-family: monospace;
-            font-size: 1.1em;
+            padding: 15px 20px;
+            border-radius: 10px;
             box-shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
         
-        .color-hex {
-            color: #667eea;
+        .code-label {
             font-weight: bold;
+            color: #333;
+            font-size: 1.1em;
         }
         
-        .color-rgb {
+        .code-value {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 8px 15px;
+            border-radius: 5px;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .code-value:hover {
+            background: #e9ecef;
+        }
+        
+        .hex-value {
+            color: #667eea;
+        }
+        
+        .rgb-value {
             color: #28a745;
         }
         
-        .color-hsl {
+        .hsl-value {
             color: #dc3545;
         }
         
@@ -188,6 +201,31 @@
             border: 1px solid #f5c6cb;
         }
         
+        .copy-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 5px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -207,19 +245,27 @@
                 height: 120px;
             }
             
-            .color-name {
-                font-size: 2em;
+            .color-code-item {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+            
+            .code-value {
+                font-size: 1.1em;
+                width: 100%;
+                text-align: center;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎨 カラー検出アプリ</h1>
+        <h1>🎨 Color Detection App</h1>
         
         <div class="description">
-            カメラで撮影した画面全体の平均色をリアルタイムで検出します。<br>
-            物体や背景の色を簡単に識別できます。
+            Detect the average color of the entire camera view in real-time.<br>
+            Easily identify colors of objects and backgrounds.
         </div>
         
         <div class="camera-container">
@@ -227,26 +273,35 @@
         </div>
         
         <div class="status inactive" id="cameraStatus">
-            カメラが停止しています
+            Camera is stopped
         </div>
         
         <div class="controls">
-            <button id="startCameraBtn" onclick="startCamera()">📷 カメラを起動</button>
-            <button id="stopCameraBtn" onclick="stopCamera()" style="display:none;" class="secondary">⏹️ カメラを停止</button>
-            <button id="switchCameraBtn" onclick="switchCamera()" style="display:none;" class="secondary">🔄 カメラ切替</button>
-            <button id="captureBtn" onclick="captureAndAnalyze()" disabled>📸 色を分析</button>
-            <button id="realtimeBtn" onclick="toggleRealtime()" disabled>🔴 リアルタイム分析</button>
+            <button id="startCameraBtn" onclick="startCamera()">📷 Start Camera</button>
+            <button id="stopCameraBtn" onclick="stopCamera()" style="display:none;" class="secondary">⏹️ Stop Camera</button>
+            <button id="switchCameraBtn" onclick="switchCamera()" style="display:none;" class="secondary">🔄 Switch Camera</button>
+            <button id="captureBtn" onclick="captureAndAnalyze()" disabled>📸 Analyze Color</button>
+            <button id="realtimeBtn" onclick="toggleRealtime()" disabled>🔴 Real-time Analysis</button>
         </div>
         
         <div class="realtime-mode">
             <div class="realtime-display" id="realtimeDisplay">
                 <div class="color-box" id="realtimeColorBox"></div>
                 <div class="color-info">
-                    <div class="color-name" id="realtimeColorName">-</div>
-                    <div class="color-values">
-                        <div class="color-value color-hex" id="realtimeHex">#------</div>
-                        <div class="color-value color-rgb" id="realtimeRGB">RGB(0,0,0)</div>
-                        <div class="color-value color-hsl" id="realtimeHSL">HSL(0,0%,0%)</div>
+                    <h3>Current Average Color</h3>
+                    <div class="color-codes">
+                        <div class="color-code-item">
+                            <span class="code-label">HEX</span>
+                            <span class="code-value hex-value" id="realtimeHex" onclick="copyToClipboard('realtimeHex')">#------</span>
+                        </div>
+                        <div class="color-code-item">
+                            <span class="code-label">RGB</span>
+                            <span class="code-value rgb-value" id="realtimeRGB" onclick="copyToClipboard('realtimeRGB')">rgb(0,0,0)</span>
+                        </div>
+                        <div class="color-code-item">
+                            <span class="code-label">HSL</span>
+                            <span class="code-value hsl-value" id="realtimeHSL" onclick="copyToClipboard('realtimeHSL')">hsl(0,0%,0%)</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -255,14 +310,27 @@
         <div class="color-display" id="colorResult" style="display:none;">
             <div class="color-box" id="detectedColorBox"></div>
             <div class="color-info">
-                <div class="color-name" id="detectedColorName">検出された色</div>
-                <div class="color-values">
-                    <div class="color-value color-hex" id="detectedHex">#------</div>
-                    <div class="color-value color-rgb" id="detectedRGB">RGB(0,0,0)</div>
-                    <div class="color-value color-hsl" id="detectedHSL">HSL(0,0%,0%)</div>
+                <h3>Detected Color</h3>
+                <div class="color-codes">
+                    <div class="color-code-item">
+                        <span class="code-label">HEX</span>
+                        <span class="code-value hex-value" id="detectedHex" onclick="copyToClipboard('detectedHex')">#------</span>
+                    </div>
+                    <div class="color-code-item">
+                        <span class="code-label">RGB</span>
+                        <span class="code-value rgb-value" id="detectedRGB" onclick="copyToClipboard('detectedRGB')">rgb(0,0,0)</span>
+                    </div>
+                    <div class="color-code-item">
+                        <span class="code-label">HSL</span>
+                        <span class="code-value hsl-value" id="detectedHSL" onclick="copyToClipboard('detectedHSL')">hsl(0,0%,0%)</span>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+    
+    <div class="copy-notification" id="copyNotification">
+        ✓ Copied to clipboard!
     </div>
 
     <script>
@@ -275,25 +343,7 @@
         const cameraStatus = document.getElementById('cameraStatus');
         const colorResult = document.getElementById('colorResult');
         const realtimeDisplay = document.getElementById('realtimeDisplay');
-        
-        // カラーネームデータベース（簡易版）
-        const colorNames = [
-            { name: "赤", ranges: [[0, 15], [345, 360]] },
-            { name: "オレンジ", ranges: [[16, 45]] },
-            { name: "黄", ranges: [[46, 75]] },
-            { name: "黄緑", ranges: [[76, 105]] },
-            { name: "緑", ranges: [[106, 165]] },
-            { name: "水色", ranges: [[166, 195]] },
-            { name: "青", ranges: [[196, 255]] },
-            { name: "紫", ranges: [[256, 285]] },
-            { name: "ピンク", ranges: [[286, 315]] },
-            { name: "赤紫", ranges: [[316, 345]] },
-            { name: "白", ranges: [[0, 360]], condition: (s, l) => l > 95 && s < 10 },
-            { name: "黒", ranges: [[0, 360]], condition: (s, l) => l < 5 },
-            { name: "グレー", ranges: [[0, 360]], condition: (s, l) => s < 10 && l >= 5 && l <= 95 },
-            { name: "ベージュ", ranges: [[30, 60]], condition: (s, l) => s < 30 && l > 70 },
-            { name: "茶色", ranges: [[15, 45]], condition: (s, l) => l < 50 && s > 20 },
-        ];
+        const copyNotification = document.getElementById('copyNotification');
         
         // Start Camera
         async function startCamera() {
@@ -315,7 +365,7 @@
                 document.getElementById('captureBtn').disabled = false;
                 document.getElementById('realtimeBtn').disabled = false;
                 
-                cameraStatus.textContent = "カメラが起動しています";
+                cameraStatus.textContent = "Camera is active";
                 cameraStatus.className = "status active";
                 
                 if (!usingFrontCamera) {
@@ -325,8 +375,8 @@
                 }
                 
             } catch (error) {
-                alert('カメラへのアクセスが拒否されました: ' + error.message);
-                cameraStatus.textContent = "カメラの起動に失敗しました";
+                alert('Camera access denied: ' + error.message);
+                cameraStatus.textContent = "Failed to start camera";
                 cameraStatus.className = "status inactive";
             }
         }
@@ -357,7 +407,7 @@
                 }
                 
             } catch (error) {
-                alert('カメラの切り替えに失敗しました: ' + error.message);
+                alert('Failed to switch camera: ' + error.message);
                 usingFrontCamera = !usingFrontCamera;
                 startCamera();
             }
@@ -376,13 +426,13 @@
                 document.getElementById('captureBtn').disabled = true;
                 document.getElementById('realtimeBtn').disabled = true;
                 
-                cameraStatus.textContent = "カメラが停止しています";
+                cameraStatus.textContent = "Camera is stopped";
                 cameraStatus.className = "status inactive";
                 
                 if (realtimeInterval) {
                     clearInterval(realtimeInterval);
                     realtimeInterval = null;
-                    document.getElementById('realtimeBtn').textContent = '🔴 リアルタイム分析';
+                    document.getElementById('realtimeBtn').textContent = '🔴 Real-time Analysis';
                     realtimeDisplay.style.display = 'none';
                     isRealtimeMode = false;
                 }
@@ -391,7 +441,7 @@
             }
         }
         
-        // 画面全体の平均色を計算
+        // Calculate average color of entire screen
         function getAverageColor(canvas) {
             const ctx = canvas.getContext('2d');
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -400,7 +450,7 @@
             let r = 0, g = 0, b = 0;
             let count = 0;
             
-            // サンプリング間隔を設定してパフォーマンスを最適化
+            // Optimize performance with sampling interval
             const sampleInterval = 10;
             
             for (let i = 0; i < data.length; i += 4 * sampleInterval) {
@@ -417,7 +467,7 @@
             return { r, g, b };
         }
         
-        // RGBからHSLに変換
+        // Convert RGB to HSL
         function rgbToHsl(r, g, b) {
             r /= 255;
             g /= 255;
@@ -449,7 +499,7 @@
             return { h, s, l };
         }
         
-        // RGBから16進数に変換
+        // Convert RGB to HEX
         function rgbToHex(r, g, b) {
             return '#' + [r, g, b].map(x => {
                 const hex = x.toString(16);
@@ -457,53 +507,34 @@
             }).join('').toUpperCase();
         }
         
-        // HSLから色名を取得
-        function getColorName(h, s, l) {
-            // 特別な条件をチェック
-            for (const color of colorNames) {
-                if (color.condition && color.condition(s, l)) {
-                    return color.name;
-                }
-            }
-            
-            // 通常の色相範囲をチェック
-            for (const color of colorNames) {
-                if (color.condition) continue; // 条件付きはスキップ
-                
-                for (const [min, max] of color.ranges) {
-                    if (h >= min && h <= max) {
-                        // 彩度が低すぎる場合はグレー系
-                        if (s < 20) {
-                            if (l > 95) return "白";
-                            if (l < 5) return "黒";
-                            return "グレー";
-                        }
-                        return color.name;
-                    }
-                }
-            }
-            
-            return "不明な色";
-        }
-        
-        // 色を表示する
+        // Display color
         function displayColor(color, elementPrefix = "detected") {
             const { r, g, b } = color;
             const { h, s, l } = rgbToHsl(r, g, b);
             const hex = rgbToHex(r, g, b);
-            const colorName = getColorName(h, s, l);
             
-            // 色ボックスを更新
+            // Update color box
             document.getElementById(`${elementPrefix}ColorBox`).style.backgroundColor = hex;
             
-            // 色名を更新
-            document.getElementById(`${elementPrefix}ColorName`).textContent = colorName;
-            document.getElementById(`${elementPrefix}ColorName`).style.color = hex;
-            
-            // カラーコードを更新
+            // Update color codes
             document.getElementById(`${elementPrefix}Hex`).textContent = hex;
-            document.getElementById(`${elementPrefix}RGB`).textContent = `RGB(${r},${g},${b})`;
-            document.getElementById(`${elementPrefix}HSL`).textContent = `HSL(${h},${s}%,${l}%)`;
+            document.getElementById(`${elementPrefix}RGB`).textContent = `rgb(${r}, ${g}, ${b})`;
+            document.getElementById(`${elementPrefix}HSL`).textContent = `hsl(${h}, ${s}%, ${l}%)`;
+        }
+        
+        // Copy to clipboard function
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                copyNotification.style.display = 'block';
+                setTimeout(() => {
+                    copyNotification.style.display = 'none';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
         }
         
         // Capture and Analyze
@@ -515,7 +546,7 @@
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             
-            // 前面カメラの場合は反転、背面カメラの場合はそのまま
+            // Flip for front camera, normal for back camera
             if (usingFrontCamera) {
                 ctx.scale(-1, 1);
                 ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
@@ -537,16 +568,16 @@
             if (realtimeInterval) {
                 clearInterval(realtimeInterval);
                 realtimeInterval = null;
-                document.getElementById('realtimeBtn').textContent = '🔴 リアルタイム分析';
+                document.getElementById('realtimeBtn').textContent = '🔴 Real-time Analysis';
                 realtimeDisplay.style.display = 'none';
                 isRealtimeMode = false;
                 colorResult.style.display = 'none';
             } else {
-                document.getElementById('realtimeBtn').textContent = '⏸️ 分析停止';
+                document.getElementById('realtimeBtn').textContent = '⏸️ Stop Analysis';
                 realtimeDisplay.style.display = 'block';
                 colorResult.style.display = 'none';
                 isRealtimeMode = true;
-                realtimeInterval = setInterval(realtimeAnalyze, 200); // 0.2秒ごとに更新
+                realtimeInterval = setInterval(realtimeAnalyze, 200); // Update every 0.2 seconds
             }
         }
         
@@ -559,7 +590,7 @@
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             
-            // 前面カメラの場合は反転、背面カメラの場合はそのまま
+            // Flip for front camera, normal for back camera
             if (usingFrontCamera) {
                 ctx.scale(-1, 1);
                 ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
@@ -573,17 +604,30 @@
         
         // Initialize
         window.addEventListener('load', () => {
-            // デバイスのカメラ対応状況を表示
+            // Check camera support
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                cameraStatus.textContent = "このブラウザはカメラに対応していません";
+                cameraStatus.textContent = "This browser does not support camera";
                 cameraStatus.className = "status inactive";
                 document.getElementById('startCameraBtn').disabled = true;
             }
         });
         
-        // ページを離れるときにカメラを停止
+        // Stop camera when leaving page
         window.addEventListener('beforeunload', () => {
             stopCamera();
+        });
+        
+        // Add click event listeners for copy functionality
+        document.querySelectorAll('.code-value').forEach(element => {
+            element.addEventListener('click', function() {
+                const text = this.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    copyNotification.style.display = 'block';
+                    setTimeout(() => {
+                        copyNotification.style.display = 'none';
+                    }, 2000);
+                });
+            });
         });
     </script>
 </body>
