@@ -14,3 +14,4 @@ https://tztechno.github.io/tz_tensorflowjs/06_rps2/index.html (pytorch, onnx)
 
 https://tztechno.github.io/tz_tensorflowjs/07_color_detect/index.html
 
+https://tztechno.github.io/tz_tensorflowjs/08_dog_cam/index.html
