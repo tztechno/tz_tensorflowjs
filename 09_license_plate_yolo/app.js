@@ -68,10 +68,26 @@ return float32;
 
 
 function nms(boxes, scores, iouThreshold) {
-// boxes: [[x1,y1,x2,y2],...]
-const idxs = scores
-.map((s,i) => [s,i])
-.filter(x => x[0] > scoreThreshold)
-.sort((a,b) => b[0]-a[0])
-.map(x => x[1]);
-});
+    const order = scores
+        .map((s, i) => [s, i])
+        .filter(([score]) => score > scoreThreshold)
+        .sort((a, b) => b[0] - a[0])
+        .map(x => x[1]);
+
+    const selected = [];
+
+    while (order.length > 0) {
+        const i = order.shift();
+        selected.push(i);
+
+        const remove = [];
+        for (let j = 0; j < order.length; j++) {
+            const o = order[j];
+            const iou = IoU(boxes[i], boxes[o]);
+            if (iou > iouThreshold) remove.push(o);
+        }
+        order = order.filter(x => !remove.includes(x));
+    }
+
+    return selected;
+}
