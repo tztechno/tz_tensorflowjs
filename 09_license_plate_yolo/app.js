@@ -5,7 +5,6 @@ const overlay = document.getElementById('overlay');
 const ctx = overlay.getContext('2d');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
-// const modelUrlInput = document.getElementById('modelUrl');
 
 
 let session = null;
@@ -14,11 +13,9 @@ let rafId = null;
 
 
 async function loadModel() {
-    const modelUrl = 'license_plate_yolo.onnx';
-    session = await ort.InferenceSession.create(modelUrl);
-    console.log("Model loaded:", modelUrl);
+    session = await ort.InferenceSession.create("./license_plate_yolo.onnx");
+    console.log("Model loaded");
 }
-
 
 const targetSize = 640; // ONNX に合わせる
 const scoreThreshold = 0.25;
