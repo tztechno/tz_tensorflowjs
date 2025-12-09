@@ -16,7 +16,7 @@ https://tztechno.github.io/tz_tensorflowjs/07_color_detect/index.html (canvas-ap
 
 https://tztechno.github.io/tz_tensorflowjs/08_dog_cam/index.html (coco-ssd)
 
-https://tztechno.github.io/tz_tensorflowjs/09_license_plate_yolo/index.html (yolo)
+https://tztechno.github.io/tz_tensorflowjs/09_license_plate_yolo/index.html (yolo .... ERROR)
 
 
 
