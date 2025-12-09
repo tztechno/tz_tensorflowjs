@@ -15,3 +15,8 @@ https://tztechno.github.io/tz_tensorflowjs/06_rps2/index.html (pytorch, onnx)
 https://tztechno.github.io/tz_tensorflowjs/07_color_detect/index.html (canvas-api)
 
 https://tztechno.github.io/tz_tensorflowjs/08_dog_cam/index.html (coco-ssd)
+
+https://tztechno.github.io/tz_tensorflowjs/09_license_plate_yolo/index.html (yolo)
+
+
+
