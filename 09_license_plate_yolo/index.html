@@ -1,28 +1,58 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>YOLO ONNX Web Demo</title>
-<link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Plate Detection</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 </head>
 <body>
-<h1>YOLO ONNX Web Demo (Camera)</h1>
+    <div class="container">
+        <h1>License Plate Detection System</h1>
+        
+        <div class="controls">
+            <div class="input-group">
+                <input type="file" id="imageInput" accept="image/*" capture="environment" style="display: none;">
+                <label for="imageInput" class="btn">Select Image</label>
+                
+                <button id="cameraBtn" class="btn">Start Camera</button>
+                <button id="stopCameraBtn" class="btn">Stop Camera</button>
+                <button id="detectBtn" class="btn primary">Detect License Plates</button>
+            </div>
+        </div>
 
+        <div class="content">
+            <div class="left-panel">
+                <div class="video-container">
+                    <video id="cameraFeed" autoplay playsinline style="display: none;"></video>
+                    <canvas id="inputCanvas"></canvas>
+                </div>
+                <div id="status">Ready to detect license plates</div>
+            </div>
 
-<div id="controls">
-<button id="startBtn">Start Camera</button>
-<button id="stopBtn" disabled>Stop</button>
-</div>
+            <div class="right-panel">
+                <h3>Detection Results</h3>
+                <div id="results"></div>
+                <div class="model-info">
+                    <h4>Model Information</h4>
+                    <p>Using YOLO model for license plate detection</p>
+                    <p>Model: license_plate_yolo.onnx</p>
+                </div>
+            </div>
+        </div>
 
+        <div class="instructions">
+            <h3>How to use:</h3>
+            <ol>
+                <li>Click "Select Image" to upload a photo</li>
+                <li>OR click "Start Camera" to use your webcam</li>
+                <li>Click "Detect License Plates" to run detection</li>
+                <li>Detected plates will be highlighted with bounding boxes</li>
+            </ol>
+        </div>
+    </div>
 
-<div id="wrap">
-<video id="video" autoplay playsinline></video>
-<canvas id="overlay"></canvas>
-</div>
-
-
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-<script src="app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
