@@ -5,7 +5,7 @@ const overlay = document.getElementById('overlay');
 const ctx = overlay.getContext('2d');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
-const modelUrlInput = document.getElementById('modelUrl');
+// const modelUrlInput = document.getElementById('modelUrl');
 
 
 let session = null;
