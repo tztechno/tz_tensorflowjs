@@ -1,4 +1,5 @@
 // app.js
+
 const video = document.getElementById('video');
 const overlay = document.getElementById('overlay');
 const ctx = overlay.getContext('2d');
@@ -69,14 +70,4 @@ const idxs = scores
 .filter(x => x[0] > scoreThreshold)
 .sort((a,b) => b[0]-a[0])
 .map(x => x[1]);
-
-
-const keep = [];
-while (idxs.length > 0) {
-const i = idxs.shift();
-keep.push(i);
-for (let j = idxs.length-1; j >= 0; j--) {
-const k = idxs[j];
-const iou = boxIou(boxes[i], boxes[k]);
-if (iou > iouThreshold) idxs.splice(j,1);
 });
