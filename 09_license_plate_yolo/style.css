@@ -1,0 +1,5 @@
+body { font-family: Arial, sans-serif; margin: 16px; }
+#wrap { position: relative; display:inline-block; }
+video { width: 100%; max-width: 640px; height: auto; transform: scaleX(-1); /* mirror for user-facing UX */ }
+canvas { position: absolute; left: 0; top: 0; }
+#controls { margin-bottom: 8px; }
