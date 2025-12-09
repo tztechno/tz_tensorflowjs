@@ -13,6 +13,13 @@ let stream = null;
 let rafId = null;
 
 
+async function loadModel() {
+    const modelUrl = 'license_plate_yolo.onnx';
+    session = await ort.InferenceSession.create(modelUrl);
+    console.log("Model loaded:", modelUrl);
+}
+
+
 const targetSize = 640; // ONNX に合わせる
 const scoreThreshold = 0.25;
 const iouThreshold = 0.45;
