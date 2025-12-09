@@ -31,6 +31,57 @@ h1 {
     -webkit-text-fill-color: transparent;
 }
 
+
+.result-item {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid #667eea;
+    transition: transform 0.3s ease;
+}
+
+.result-item:hover {
+    transform: translateX(5px);
+}
+
+.result-item h4 {
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 18px;
+}
+
+.result-item p {
+    color: #666;
+    font-size: 14px;
+    margin: 5px 0;
+}
+
+#status {
+    text-align: center;
+    padding: 15px;
+    background: #e9ecef;
+    border-radius: 10px;
+    font-weight: 500;
+    color: #495057;
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+
 .controls {
     background: #f8f9fa;
     padding: 20px;
