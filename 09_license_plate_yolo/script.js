@@ -40,7 +40,7 @@ class LicensePlateDetector {
         try {
             // !!! ここに変換した best.onnx への正しいパスを設定 !!!
             this.model = await ort.InferenceSession.create(
-                "best.onnx", // 例: 変換したモデル名に置き換える
+                "https://huggingface.co/datasets/stpete2/onnx_model/resolve/main/license_plate_yolo.onnx",
                 { executionProviders: ["wasm"] }
             );
             this.updateStatus("Model loaded. Ready.");
