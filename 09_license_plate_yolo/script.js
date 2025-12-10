@@ -5,7 +5,7 @@ class LicensePlateDetector {
     constructor() {
         this.model = null;
         this.videoStream = null;
-        this.modelSize = 640;
+        this.modelSize = 320;
         this.confTh = 0.25; // 推論結果の信頼度閾値
         this.iouTh = 0.45;  // Non-Maximum Suppression (NMS)の閾値
 
