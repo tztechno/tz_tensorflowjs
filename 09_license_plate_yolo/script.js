@@ -36,11 +36,11 @@ class LicensePlateDetector {
     async loadModel() {
         try {
             this.updateStatus('Loading YOLO model...');
-            console.log('Loading model from:', './license_plate_yolo.onnx');
+            console.log('Loading model from:', 'https://huggingface.co/datasets/stpete2/onnx_model/resolve/main/license_plate_yolo.onnx');
             
             // ONNX Runtimeセッションを作成
             this.model = await ort.InferenceSession.create(
-                './license_plate_yolo.onnx',
+                'https://huggingface.co/datasets/stpete2/onnx_model/resolve/main/license_plate_yolo.onnx',
                 {
                     executionProviders: ['webgl', 'wasm'],
                     graphOptimizationLevel: 'all'
