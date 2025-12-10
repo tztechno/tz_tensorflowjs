@@ -42,8 +42,7 @@ class LicensePlateDetector {
             this.model = await ort.InferenceSession.create(
                 'https://huggingface.co/datasets/stpete2/onnx_model/resolve/main/license_plate_yolo.onnx',
                 {
-                    executionProviders: ['webgl', 'wasm'],
-                    graphOptimizationLevel: 'all'
+                    executionProviders: ['wasm']
                 }
             );
             
