@@ -41,8 +41,13 @@ class LicensePlateDetector {
     }
 
     loadImage(file) {
+        this.stopCamera();
+
         const img = new Image();
         img.onload = () => {
+            this.canvas.style.display = "block";
+            this.video.style.display = "none";
+
             this.canvas.width = img.width;
             this.canvas.height = img.height;
             this.ctx.drawImage(img, 0, 0);
@@ -51,26 +56,54 @@ class LicensePlateDetector {
     }
 
     async startCamera() {
+        this.updateStatus("Starting camera...");
+
         this.stopCamera();
-        this.videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        this.video.srcObject = this.videoStream;
-        await this.video.play();
+
+        try {
+            this.video.style.display = "block";
+            this.canvas.style.display = "none";
+
+            this.videoStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment" }
+            });
+
+            this.video.srcObject = this.videoStream;
+
+            // スマホでよく起きる play() 拒否を保護
+            await this.video.play().catch(() => {});
+
+            this.updateStatus("Camera started.");
+        } catch (err) {
+            console.error(err);
+            this.updateStatus("Camera error: " + err.message);
+        }
     }
 
     stopCamera() {
         if (this.videoStream) {
-            this.videoStream.getTracks().forEach(t => t.stop());
+            this.videoStream.getTracks().forEach(track => track.stop());
             this.videoStream = null;
         }
+
+        this.video.style.display = "none";
+        this.canvas.style.display = "block";
+
+        this.updateStatus("Camera stopped.");
     }
 
     async detect() {
         if (!this.model) return;
 
+        let w, h;
+
         if (this.videoStream) {
-            this.canvas.width = this.video.videoWidth;
-            this.canvas.height = this.video.videoHeight;
-            this.ctx.drawImage(this.video, 0, 0);
+            // カメラ映像から取得
+            w = this.video.videoWidth;
+            h = this.video.videoHeight;
+            this.canvas.width = w;
+            this.canvas.height = h;
+            this.ctx.drawImage(this.video, 0, 0, w, h);
         }
 
         const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
@@ -79,6 +112,8 @@ class LicensePlateDetector {
         const output = await this.model.run({ images: input });
         const dets = this.postprocess(output[Object.keys(output)[0]]);
         this.draw(dets);
+
+        this.updateStatus("Detection finished.");
     }
 
     preprocess(img) {
@@ -104,7 +139,7 @@ class LicensePlateDetector {
         const d = tensor.data;
         const w = this.canvas.width;
         const h = this.canvas.height;
-        const stride = 6; // [x,y,w,h,conf,class]
+        const stride = 6;
 
         const dets = [];
 
@@ -162,3 +197,7 @@ class LicensePlateDetector {
         });
     }
 }
+
+window.addEventListener("DOMContentLoaded", () => {
+    new LicensePlateDetector();
+});
