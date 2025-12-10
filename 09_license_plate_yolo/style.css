@@ -237,3 +237,16 @@ h1 {
         font-size: 2em;
     }
 }
+
+/* スマホでカメラが巨大化しないように制限 */
+@media (max-width: 768px) {
+    .video-container {
+        max-height: 300px;  /* ← スマホ表示高さを制限 */
+        height: auto;
+        aspect-ratio: auto; /* ← 16/9 強制を解除 */
+    }
+
+    #cameraFeed, #inputCanvas {
+        object-fit: contain;  /* ← 拡大しすぎ防止 */
+    }
+}
