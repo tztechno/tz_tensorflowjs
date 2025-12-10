@@ -11,3 +11,24 @@ Place `best.onnx` in this repo (or set model URL in the app). Open via GitHub Pa
 
 
 **If ONNX i
+
+
+
+            // ONNX Runtimeセッションを作成
+            this.model = await ort.InferenceSession.create(
+                'https://huggingface.co/datasets/stpete2/onnx_model/resolve/main/license_plate_yolo.onnx',
+                {
+                    executionProviders: ['webgl', 'wasm'],
+                    graphOptimizationLevel: 'all'
+                }
+            );
+
+以下のように簡略してもOK
+
+            // ONNX Runtimeセッションを作成
+            this.model = await ort.InferenceSession.create(
+                'https://huggingface.co/datasets/stpete2/onnx_model/resolve/main/license_plate_yolo.onnx',
+                {
+                    executionProviders: ['wasm'],
+                }
+            );
